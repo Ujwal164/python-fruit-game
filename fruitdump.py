@@ -50,9 +50,9 @@ conveyor_frame_index = 0
 conveyor_animation_timer = 0
 
 # Box settings
-BOX_WIDTH, BOX_HEIGHT = 120, 80
-BOX_Y = HEIGHT - 120
-BOX_MARGIN = 40
+BOX_WIDTH, BOX_HEIGHT = 270, 400
+BOX_Y = 300
+BOX_MARGIN = -2
 FONT = pygame.font.SysFont('arial', 28, bold=True)
 BIG_FONT = pygame.font.SysFont('arial', 48, bold=True)
 
@@ -123,13 +123,13 @@ def draw_game():
         pygame.draw.rect(screen, CONVEYOR_COLOR, (conveyor_x, 0, CONVEYOR_WIDTH, HEIGHT))
 
     # Draw left box
-    left_box_rect = pygame.Rect(BOX_MARGIN, BOX_Y, BOX_WIDTH, BOX_HEIGHT)
+    left_box_rect = pygame.Rect(-55, BOX_Y, BOX_WIDTH, BOX_HEIGHT)
     screen.blit(BOX_LEFT_IMG, (left_box_rect.x, left_box_rect.y))
     left_text = FONT.render(left_label.capitalize(), True, (60, 60, 120))
     screen.blit(left_text, (left_box_rect.centerx - left_text.get_width()//2, left_box_rect.centery - left_text.get_height()//2))
 
     # Draw right box
-    right_box_rect = pygame.Rect(WIDTH - BOX_MARGIN - BOX_WIDTH, BOX_Y, BOX_WIDTH, BOX_HEIGHT)
+    right_box_rect = pygame.Rect(WIDTH - BOX_WIDTH + 55, BOX_Y, BOX_WIDTH, BOX_HEIGHT)
     screen.blit(BOX_RIGHT_IMG, (right_box_rect.x, right_box_rect.y))
     right_text = FONT.render(right_label.capitalize(), True, (120, 60, 60))
     screen.blit(right_text, (right_box_rect.centerx - right_text.get_width()//2, right_box_rect.centery - right_text.get_height()//2))
