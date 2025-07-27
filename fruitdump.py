@@ -26,6 +26,29 @@ for fruit in FRUITS:
     else:
         FRUIT_IMAGES[fruit] = None  # Placeholder if image not found
 
+# Conveyor settings
+CONVEYOR_WIDTH = 500
+CONVEYOR_COLOR = (180, 180, 180)
+
+# Load animated conveyor frames
+CONVEYOR_FRAMES = []
+for i in range(1, 4):  # Load convey1.png, convey2.png, convey3.png
+    path = os.path.join(ASSET_DIR, f'convey{i}.png')
+    if os.path.exists(path):
+        img = pygame.image.load(path).convert_alpha()
+        CONVEYOR_FRAMES.append(pygame.transform.smoothscale(img, (CONVEYOR_WIDTH, HEIGHT)))
+    else:
+        # Fallback to JPG if PNG not found
+        path = os.path.join(ASSET_DIR, f'conveyor{i}.jpg')
+        if os.path.exists(path):
+            img = pygame.image.load(path).convert_alpha()
+            CONVEYOR_FRAMES.append(pygame.transform.smoothscale(img, (CONVEYOR_WIDTH, HEIGHT)))
+
+# Animation settings
+CONVEYOR_ANIMATION_SPEED = 0.2  # Seconds per frame
+conveyor_frame_index = 0
+conveyor_animation_timer = 0
+
 # Box settings
 BOX_WIDTH, BOX_HEIGHT = 120, 80
 BOX_Y = HEIGHT - 120
@@ -33,13 +56,21 @@ BOX_MARGIN = 40
 FONT = pygame.font.SysFont('arial', 28, bold=True)
 BIG_FONT = pygame.font.SysFont('arial', 48, bold=True)
 
-# Conveyor settings
-CONVEYOR_WIDTH = 80
-CONVEYOR_COLOR = (180, 180, 180)
+# Load background, conveyor, and box images
+BACKGROUND_IMG = pygame.image.load(os.path.join(ASSET_DIR, 'background.jpg')).convert()
+BACKGROUND_IMG = pygame.transform.smoothscale(BACKGROUND_IMG, (WIDTH, HEIGHT))
+
+BOX_LEFT_IMG = pygame.image.load(os.path.join(ASSET_DIR, 'box_left.png')).convert_alpha()
+BOX_LEFT_IMG = pygame.transform.smoothscale(BOX_LEFT_IMG, (BOX_WIDTH, BOX_HEIGHT))
+
+BOX_RIGHT_IMG = pygame.image.load(os.path.join(ASSET_DIR, 'box_right.png')).convert_alpha()
+BOX_RIGHT_IMG = pygame.transform.smoothscale(BOX_RIGHT_IMG, (BOX_WIDTH, BOX_HEIGHT))
 
 # Fruit settings
-FRUIT_START_SPEED = 3
+FRUIT_START_SPEED = 2.5
 SPEED_INCREASE = 0.02  # 2% per point
+FRUIT_START_SIZE = 0.8  # Start at 30% of normal size
+FRUIT_END_SIZE = 2.4    # End at 100% of normal size
 
 # Initialize game state
 def reset_round():
@@ -47,46 +78,86 @@ def reset_round():
     left_label = random.choice(FRUITS)
     right_label = random.choice([f for f in FRUITS if f != left_label])
     current_fruit = random.choice(FRUITS)
-    fruit_y = 60
+    fruit_y = HEIGHT // 2  # Start from center of screen
 
 # Initialize variables so they are always in scope
 left_label = FRUITS[0]
 right_label = FRUITS[1]
 current_fruit = FRUITS[2]
-fruit_y = 60
+fruit_y = HEIGHT // 2  # Start from center of screen
 
 reset_round()
 fruit_speed = FRUIT_START_SPEED
 score = 0
 is_game_over = False
 
-def draw_game():
-    screen.fill((255, 255, 255))  # White background
+def get_fruit_scale():
+    """Calculate fruit scale based on Y position (zoom out effect)"""
+    # Calculate progress from center to bottom (0.0 to 1.0)
+    center_y = HEIGHT // 2
+    progress = (fruit_y - center_y) / (HEIGHT - center_y)
+    progress = max(0.0, min(1.0, progress))  # Clamp between 0 and 1
+    
+    # Interpolate between start and end size
+    scale = FRUIT_START_SIZE + (FRUIT_END_SIZE - FRUIT_START_SIZE) * progress
+    return scale
 
-    # Draw conveyor belt
-    conveyor_rect = pygame.Rect((WIDTH//2 - CONVEYOR_WIDTH//2, 0, CONVEYOR_WIDTH, HEIGHT))
-    pygame.draw.rect(screen, CONVEYOR_COLOR, conveyor_rect)
+def draw_game():
+    global conveyor_animation_timer, conveyor_frame_index
+    
+    # Update conveyor animation
+    conveyor_animation_timer += 1/60  # Assuming 60 FPS
+    if conveyor_animation_timer >= CONVEYOR_ANIMATION_SPEED:
+        conveyor_animation_timer = 0
+        conveyor_frame_index = (conveyor_frame_index + 1) % len(CONVEYOR_FRAMES)
+    
+    # Draw background
+    screen.blit(BACKGROUND_IMG, (0, 0))
+
+    # Draw animated conveyor belt
+    conveyor_x = WIDTH // 2 - CONVEYOR_WIDTH // 2
+    if CONVEYOR_FRAMES:
+        screen.blit(CONVEYOR_FRAMES[conveyor_frame_index], (conveyor_x, 0))
+    else:
+        # Fallback to solid color if no frames loaded
+        pygame.draw.rect(screen, CONVEYOR_COLOR, (conveyor_x, 0, CONVEYOR_WIDTH, HEIGHT))
 
     # Draw left box
     left_box_rect = pygame.Rect(BOX_MARGIN, BOX_Y, BOX_WIDTH, BOX_HEIGHT)
-    pygame.draw.rect(screen, (220, 220, 250), left_box_rect, border_radius=12)
+    screen.blit(BOX_LEFT_IMG, (left_box_rect.x, left_box_rect.y))
     left_text = FONT.render(left_label.capitalize(), True, (60, 60, 120))
     screen.blit(left_text, (left_box_rect.centerx - left_text.get_width()//2, left_box_rect.centery - left_text.get_height()//2))
 
     # Draw right box
     right_box_rect = pygame.Rect(WIDTH - BOX_MARGIN - BOX_WIDTH, BOX_Y, BOX_WIDTH, BOX_HEIGHT)
-    pygame.draw.rect(screen, (250, 220, 220), right_box_rect, border_radius=12)
+    screen.blit(BOX_RIGHT_IMG, (right_box_rect.x, right_box_rect.y))
     right_text = FONT.render(right_label.capitalize(), True, (120, 60, 60))
     screen.blit(right_text, (right_box_rect.centerx - right_text.get_width()//2, right_box_rect.centery - right_text.get_height()//2))
 
-    # Draw fruit moving down the conveyor
+    # Draw fruit moving down the conveyor with zoom effect
     fruit_img = FRUIT_IMAGES[current_fruit]
     fruit_x = WIDTH // 2
+    
     if fruit_img:
-        rect = fruit_img.get_rect(center=(fruit_x, fruit_y))
-        screen.blit(fruit_img, rect)
+        # Calculate scale for zoom effect
+        scale = get_fruit_scale()
+        
+        # Scale the fruit image
+        scaled_width = int(FRUIT_SIZE[0] * scale)
+        scaled_height = int(FRUIT_SIZE[1] * scale)
+        
+        if scaled_width > 0 and scaled_height > 0:
+            scaled_fruit = pygame.transform.smoothscale(fruit_img, (scaled_width, scaled_height))
+            rect = scaled_fruit.get_rect(center=(fruit_x, fruit_y))
+            screen.blit(scaled_fruit, rect)
+        else:
+            # Fallback for very small scales
+            pygame.draw.circle(screen, (200, 0, 0), (fruit_x, fruit_y), max(1, int(32 * scale)))
     else:
-        pygame.draw.circle(screen, (200, 0, 0), (fruit_x, fruit_y), 32)
+        # Fallback circle with zoom effect
+        scale = get_fruit_scale()
+        radius = max(1, int(32 * scale))
+        pygame.draw.circle(screen, (200, 0, 0), (fruit_x, fruit_y), radius)
 
     # Draw score
     score_text = FONT.render(f"Score: {score}", True, (40, 40, 40))
