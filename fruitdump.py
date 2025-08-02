@@ -50,8 +50,8 @@ conveyor_frame_index = 0
 conveyor_animation_timer = 0
 
 # Box settings
-BOX_WIDTH, BOX_HEIGHT = 270, 400
-BOX_Y = 300
+BOX_WIDTH, BOX_HEIGHT = 220, 400
+BOX_Y = 327
 BOX_MARGIN = -2
 FONT = pygame.font.SysFont('arial', 28, bold=True)
 BIG_FONT = pygame.font.SysFont('arial', 48, bold=True)
@@ -67,24 +67,33 @@ BOX_RIGHT_IMG = pygame.image.load(os.path.join(ASSET_DIR, 'box_right.png')).conv
 BOX_RIGHT_IMG = pygame.transform.smoothscale(BOX_RIGHT_IMG, (BOX_WIDTH, BOX_HEIGHT))
 
 # Fruit settings
-FRUIT_START_SPEED = 2.5
-SPEED_INCREASE = 0.02  # 2% per point
+FRUIT_START_SPEED = 3  # Slower start speed
+SPEED_INCREASE = 0.01  # Slower speed increase
 FRUIT_START_SIZE = 0.8  # Start at 30% of normal size
-FRUIT_END_SIZE = 2.4    # End at 100% of normal size
+FRUIT_END_SIZE = 2    # End at 100% of normal size
+
+# Fruit sliding animation
+FRUIT_SLIDE_SPEED = 3  # Pixels per frame for sliding
+fruit_target_x = WIDTH // 2  # Target position for smooth sliding
+reset_delay = 0  # Delay before resetting round to show sliding animation
 
 # Initialize game state
 def reset_round():
-    global left_label, right_label, current_fruit, fruit_y
+    global left_label, right_label, current_fruit, fruit_y, fruit_x, fruit_target_x, reset_delay
     left_label = random.choice(FRUITS)
     right_label = random.choice([f for f in FRUITS if f != left_label])
     current_fruit = random.choice(FRUITS)
     fruit_y = HEIGHT // 2  # Start from center of screen
+    fruit_x = WIDTH // 2  # Start from center of screen
+    fruit_target_x = WIDTH // 2  # Reset target position
+    reset_delay = 0  # Reset delay
 
 # Initialize variables so they are always in scope
 left_label = FRUITS[0]
 right_label = FRUITS[1]
 current_fruit = FRUITS[2]
 fruit_y = HEIGHT // 2  # Start from center of screen
+fruit_x = WIDTH // 2  # Start from center of screen
 
 reset_round()
 fruit_speed = FRUIT_START_SPEED
@@ -93,10 +102,23 @@ is_game_over = False
 is_paused = False  # Add pause state
 
 def get_fruit_scale():
-    """Calculate fruit scale based on Y position (zoom out effect)"""
+    """Calculate fruit scale based on Y position (zoom out effect with falling illusion)"""
     # Calculate progress from center to bottom (0.0 to 1.0)
     center_y = HEIGHT // 2
-    progress = (fruit_y - center_y) / (HEIGHT - center_y)
+    conveyor_end_y = HEIGHT - 150  # End of conveyor belt
+    
+    # If fruit is past the conveyor end, create falling effect
+    if fruit_y > conveyor_end_y:
+        # Calculate falling progress (0.0 to 1.0)
+        fall_progress = (fruit_y - conveyor_end_y) / (HEIGHT - conveyor_end_y)
+        fall_progress = max(0.0, min(1.0, fall_progress))  # Clamp between 0 and 1
+        
+        # Rapidly shrink the fruit as it falls
+        scale = FRUIT_END_SIZE * (1.0 - fall_progress * 0.8)  # Shrink to 20% of original size
+        return max(0.1, scale)  # Don't let it get too small
+    
+    # Normal conveyor scaling
+    progress = (fruit_y - center_y) / (conveyor_end_y - center_y)
     progress = max(0.0, min(1.0, progress))  # Clamp between 0 and 1
     
     # Interpolate between start and end size
@@ -124,20 +146,19 @@ def draw_game():
         pygame.draw.rect(screen, CONVEYOR_COLOR, (conveyor_x, 0, CONVEYOR_WIDTH, HEIGHT))
 
     # Draw left box
-    left_box_rect = pygame.Rect(-55, BOX_Y, BOX_WIDTH, BOX_HEIGHT)
+    left_box_rect = pygame.Rect(-45, BOX_Y, BOX_WIDTH, BOX_HEIGHT)
     screen.blit(BOX_LEFT_IMG, (left_box_rect.x, left_box_rect.y))
     left_text = FONT.render(left_label.capitalize(), True, (60, 60, 120))
-    screen.blit(left_text, (left_box_rect.centerx - left_text.get_width()//2, left_box_rect.centery - left_text.get_height()//2))
+    screen.blit(left_text, (left_box_rect.centerx - left_text.get_width()//2, left_box_rect.centery - left_text.get_height()//2 + 30))
 
     # Draw right box
     right_box_rect = pygame.Rect(WIDTH - BOX_WIDTH + 55, BOX_Y, BOX_WIDTH, BOX_HEIGHT)
     screen.blit(BOX_RIGHT_IMG, (right_box_rect.x, right_box_rect.y))
     right_text = FONT.render(right_label.capitalize(), True, (120, 60, 60))
-    screen.blit(right_text, (right_box_rect.centerx - right_text.get_width()//2, right_box_rect.centery - right_text.get_height()//2))
+    screen.blit(right_text, (right_box_rect.centerx - right_text.get_width()//2, right_box_rect.centery - right_text.get_height()//2 + 30))
 
     # Draw fruit moving down the conveyor with zoom effect
     fruit_img = FRUIT_IMAGES[current_fruit]
-    fruit_x = WIDTH // 2
     
     if fruit_img:
         # Calculate scale for zoom effect
@@ -206,27 +227,49 @@ while running:
                     is_paused = not is_paused
                 # Only process game controls if not paused
                 elif not is_paused:
-                    # If neither label matches, any swipe is game over
-                    if current_fruit != left_label and current_fruit != right_label:
-                        if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
+                    # Fruit sliding controls - set target positions
+                    if event.key == pygame.K_LEFT:
+                        # Set target for left box
+                        fruit_target_x = 80  # Position near left box
+                        # Check scoring for left box
+                        if current_fruit != left_label and current_fruit != right_label:
                             is_game_over = True
-                    else:
-                        if event.key == pygame.K_LEFT:
-                            if current_fruit == left_label:
-                                score += 1
-                                fruit_speed += FRUIT_START_SPEED * SPEED_INCREASE
-                                reset_round()
-                            else:
-                                is_game_over = True
-                        elif event.key == pygame.K_RIGHT:
-                            if current_fruit == right_label:
-                                score += 1
-                                fruit_speed += FRUIT_START_SPEED * SPEED_INCREASE
-                                reset_round()
-                            else:
-                                is_game_over = True
+                        elif current_fruit == left_label:
+                            score += 1
+                            fruit_speed += FRUIT_START_SPEED * SPEED_INCREASE
+                            reset_delay = 40  # Show sliding for 2 seconds (30 FPS * 2)
+                        else:
+                            is_game_over = True
+                    elif event.key == pygame.K_RIGHT:
+                        # Set target for right box
+                        fruit_target_x = WIDTH - 80  # Position near right box
+                        # Check scoring for right box
+                        if current_fruit != left_label and current_fruit != right_label:
+                            is_game_over = True
+                        elif current_fruit == right_label:
+                            score += 1
+                            fruit_speed += FRUIT_START_SPEED * SPEED_INCREASE
+                            reset_delay = 40  # Show sliding for 2 seconds (30 FPS * 2)
+                        else:
+                            is_game_over = True
 
     if not is_game_over and not is_paused:
+        # Handle reset delay
+        if reset_delay > 0:
+            reset_delay -= 1
+            if reset_delay <= 0:
+                reset_round()
+        
+        # Smoothly slide fruit towards the target
+        if fruit_x < fruit_target_x:
+            fruit_x += FRUIT_SLIDE_SPEED
+            if fruit_x > fruit_target_x:
+                fruit_x = fruit_target_x
+        elif fruit_x > fruit_target_x:
+            fruit_x -= FRUIT_SLIDE_SPEED
+            if fruit_x < fruit_target_x:
+                fruit_x = fruit_target_x
+
         fruit_y += fruit_speed
         if fruit_y > HEIGHT:
             # If neither label matches, just reset round (let it pass)
@@ -237,7 +280,7 @@ while running:
 
     draw_game()
     pygame.display.flip()
-    clock.tick(60)
+    clock.tick(30)  # Slower frame rate (30 FPS instead of 60)
 
 pygame.quit()
 sys.exit() 
