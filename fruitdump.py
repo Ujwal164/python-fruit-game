@@ -90,6 +90,7 @@ reset_round()
 fruit_speed = FRUIT_START_SPEED
 score = 0
 is_game_over = False
+is_paused = False  # Add pause state
 
 def get_fruit_scale():
     """Calculate fruit scale based on Y position (zoom out effect)"""
@@ -163,6 +164,16 @@ def draw_game():
     score_text = FONT.render(f"Score: {score}", True, (40, 40, 40))
     screen.blit(score_text, (20, 20))
 
+    # Draw pause overlay if game is paused
+    if is_paused:
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        screen.blit(overlay, (0, 0))
+        pause_text = BIG_FONT.render("PAUSED", True, (255, 255, 255))
+        screen.blit(pause_text, (WIDTH//2 - pause_text.get_width()//2, HEIGHT//2 - 60))
+        resume_text = FONT.render("Press P to Resume", True, (255, 255, 255))
+        screen.blit(resume_text, (WIDTH//2 - resume_text.get_width()//2, HEIGHT//2))
+
     if is_game_over:
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         overlay.fill((255, 255, 255, 220))
@@ -186,30 +197,36 @@ while running:
                 score = 0
                 fruit_speed = FRUIT_START_SPEED
                 is_game_over = False
+                is_paused = False  # Reset pause state
                 reset_round()
         else:
             if event.type == pygame.KEYDOWN:
-                # If neither label matches, any swipe is game over
-                if current_fruit != left_label and current_fruit != right_label:
-                    if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
-                        is_game_over = True
-                else:
-                    if event.key == pygame.K_LEFT:
-                        if current_fruit == left_label:
-                            score += 1
-                            fruit_speed += FRUIT_START_SPEED * SPEED_INCREASE
-                            reset_round()
-                        else:
+                # Pause/unpause functionality
+                if event.key == pygame.K_p:
+                    is_paused = not is_paused
+                # Only process game controls if not paused
+                elif not is_paused:
+                    # If neither label matches, any swipe is game over
+                    if current_fruit != left_label and current_fruit != right_label:
+                        if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
                             is_game_over = True
-                    elif event.key == pygame.K_RIGHT:
-                        if current_fruit == right_label:
-                            score += 1
-                            fruit_speed += FRUIT_START_SPEED * SPEED_INCREASE
-                            reset_round()
-                        else:
-                            is_game_over = True
+                    else:
+                        if event.key == pygame.K_LEFT:
+                            if current_fruit == left_label:
+                                score += 1
+                                fruit_speed += FRUIT_START_SPEED * SPEED_INCREASE
+                                reset_round()
+                            else:
+                                is_game_over = True
+                        elif event.key == pygame.K_RIGHT:
+                            if current_fruit == right_label:
+                                score += 1
+                                fruit_speed += FRUIT_START_SPEED * SPEED_INCREASE
+                                reset_round()
+                            else:
+                                is_game_over = True
 
-    if not is_game_over:
+    if not is_game_over and not is_paused:
         fruit_y += fruit_speed
         if fruit_y > HEIGHT:
             # If neither label matches, just reset round (let it pass)
