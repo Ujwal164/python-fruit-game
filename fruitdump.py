@@ -53,8 +53,9 @@ conveyor_animation_timer = 0
 BOX_WIDTH, BOX_HEIGHT = 220, 400
 BOX_Y = 327
 BOX_MARGIN = -2
-FONT = pygame.font.SysFont('arial', 28, bold=True)
-BIG_FONT = pygame.font.SysFont('arial', 48, bold=True)
+FONT_PATH = os.path.join(ASSET_DIR, 'font', 'DePixelHalbfett.ttf')
+FONT = pygame.font.Font(FONT_PATH, 14)  # Pixelated font from file
+BIG_FONT = pygame.font.Font(FONT_PATH, 48)  # Pixelated font from file
 
 # Load background, conveyor, and box images
 BACKGROUND_IMG = pygame.image.load(os.path.join(ASSET_DIR, 'background.jpg')).convert()
@@ -148,14 +149,14 @@ def draw_game():
     # Draw left box
     left_box_rect = pygame.Rect(-45, BOX_Y, BOX_WIDTH, BOX_HEIGHT)
     screen.blit(BOX_LEFT_IMG, (left_box_rect.x, left_box_rect.y))
-    left_text = FONT.render(left_label.capitalize(), True, (60, 60, 120))
-    screen.blit(left_text, (left_box_rect.centerx - left_text.get_width()//2, left_box_rect.centery - left_text.get_height()//2 + 30))
+    left_text = FONT.render(left_label.capitalize(), True, (255, 255, 255))
+    screen.blit(left_text, (left_box_rect.centerx - left_text.get_width()//2, left_box_rect.centery - left_text.get_height()//2 +53))
 
     # Draw right box
     right_box_rect = pygame.Rect(WIDTH - BOX_WIDTH + 55, BOX_Y, BOX_WIDTH, BOX_HEIGHT)
     screen.blit(BOX_RIGHT_IMG, (right_box_rect.x, right_box_rect.y))
-    right_text = FONT.render(right_label.capitalize(), True, (120, 60, 60))
-    screen.blit(right_text, (right_box_rect.centerx - right_text.get_width()//2, right_box_rect.centery - right_text.get_height()//2 + 30))
+    right_text = FONT.render(right_label.capitalize(), True, (255, 255, 255))
+    screen.blit(right_text, (right_box_rect.centerx - right_text.get_width()//2, right_box_rect.centery - right_text.get_height()//2 +53 ))
 
     # Draw fruit moving down the conveyor with zoom effect
     fruit_img = FRUIT_IMAGES[current_fruit]
@@ -182,7 +183,7 @@ def draw_game():
         pygame.draw.circle(screen, (200, 0, 0), (fruit_x, fruit_y), radius)
 
     # Draw score
-    score_text = FONT.render(f"Score: {score}", True, (40, 40, 40))
+    score_text = FONT.render(f"Score: {score}", True, (255, 255, 255))
     screen.blit(score_text, (20, 20))
 
     # Draw pause overlay if game is paused
